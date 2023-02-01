@@ -37,7 +37,7 @@ class DecoderV11:
         password = b'peanuts'
         num_iterations = 1
 
-        decoder_key = pbkdf2_hmac('sha1', password, salt, num_iterations, 16)
+        self.decoder_key = pbkdf2_hmac('sha1', password, salt, num_iterations, 16)
 
     def decode(self, password: bytes) -> bytes:
         iv = bytes(' ' * 16, 'ascii')
