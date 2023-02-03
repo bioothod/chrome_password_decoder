@@ -4,6 +4,7 @@ import argparse
 import binascii
 import re
 import sqlite3
+import time
 
 from collections import namedtuple
 from Crypto.Cipher import AES
@@ -60,9 +61,17 @@ class DecoderV11:
             collection_label = collection.get_label()
             collection.load_items()
             for item in collection.get_items():
+                mtime = item.get_modified()
+                mtime = time.gmtime(mtime)
+                mtime_str = time.strftime('%Y.%m.%d %H:%M:%S', mtime)
+
+                ctime = item.get_created()
+                ctime = time.gmtime(ctime)
+                ctime_str = time.strftime('%Y.%m.%d %H:%M:%S', ctime)
+
                 item_label = item.get_label()
                 if item_label not in item_names:
-                    print(f'collection: {collection_label}, item: {item_label}')
+                    print(f'collection: {collection_label}, item: {item_label}, created: {ctime_str}, modified: {mtime_str}')
                     continue
 
                 item.load_secret_sync()
@@ -70,7 +79,13 @@ class DecoderV11:
                 master_key = item_value.encode('utf8')
 
                 decoder_key = pbkdf2_hmac('sha1', master_key, salt, num_iterations, 16)
-                print(f'collection: {collection_label}, item: {item_label}, secret: {item_value}, master_key: {binascii.hexlify(master_key)}, decoder_key: {binascii.hexlify(decoder_key)}')
+                print(f'collection: {collection_label}, '
+                      f'item: {item_label}, '
+                      f'created: {ctime_str}, '
+                      f'modified: {mtime_str}, '
+                      f'secret: {item_value}, '
+                      f'master_key: {binascii.hexlify(master_key)}, '
+                      f'decoder_key: {binascii.hexlify(decoder_key)}')
                 self.secrets.append(decoder_key)
 
     def decode(self, password: bytes) -> List[str]:
@@ -83,10 +98,11 @@ class DecoderV11:
 
         return decoded_passwords
 
-
 class SchemaParser:
     def __init__(self, table_name: str, schema: str, decoders: Dict[str, Union[DecoderV10, DecoderV11]]):
         self.decoders = decoders
+
+        self.time_offset = time.mktime(time.strptime('1601-01-01', '%Y-%m-%d'))
 
         match_query = re.match(f'CREATE TABLE \"?{table_name}\"?\\s*\\((.*)\\)', schema)
         if not match_query:
@@ -107,6 +123,11 @@ class SchemaParser:
         #print(self.fields)
         self.Row = namedtuple('Row', self.fields)
 
+    def convert_date(self, date: int) -> str:
+        sec = date / 1000000 + self.time_offset
+        sec_struct = time.gmtime(sec)
+        return time.strftime('%Y.%m.%d %H:%M:%S', sec_struct)
+
     def feed_row(self, row):
         if len(row) != len(self.fields):
             return
@@ -118,9 +139,13 @@ class SchemaParser:
             return
 
         password_data = None
+        modified_str = ''
+        created_str = ''
         for password_hash_version in self.decoders.keys():
             if row.password_value[:len(password_hash_version)] == password_hash_version.encode('ascii'):
                 password_data = row.password_value[len(password_hash_version):]
+                modified_str = self.convert_date(row.date_password_modified)
+                created_str = self.convert_date(row.date_created)
                 break
 
         if password_data is None:
@@ -131,7 +156,9 @@ class SchemaParser:
 
         print(f'url: {row.origin_url}, username: {row.username_value}, '
               f'version: {password_hash_version}, '
-              f'password: {binascii.hexlify(password_data)} -> {decoded_passwords}')
+              f'encrypted: {binascii.hexlify(password_data)}, '
+              f'modified: {modified_str}, '
+              f'decoded: {decoded_passwords}')
 
 def main():
     parser = argparse.ArgumentParser()
