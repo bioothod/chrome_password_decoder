@@ -128,12 +128,11 @@ class SchemaParser:
             #print(f'{row.origin_url}: {row.username_value}: password_element: {row.password_element}, password_value: {row.password_value}: unsupported hash version')
             return
 
-        if 'gov.uk' in row.origin_url:
-            decoded_passwords = self.decoders[password_hash_version].decode(password_data)
+        decoded_passwords = self.decoders[password_hash_version].decode(password_data)
 
-            print(f'url: {row.origin_url}, username: {row.username_value}, '
-                  f'version: {password_hash_version}, '
-                  f'password: {binascii.hexlify(password_data)} -> {decoded_passwords}')
+        print(f'url: {row.origin_url}, username: {row.username_value}, '
+              f'version: {password_hash_version}, '
+              f'password: {binascii.hexlify(password_data)} -> {decoded_passwords}')
 
 def main():
     parser = argparse.ArgumentParser()
