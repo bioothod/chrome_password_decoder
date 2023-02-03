@@ -1,7 +1,6 @@
 from typing import List, Dict, Union
 
 import argparse
-import base64
 import binascii
 import re
 import sqlite3
@@ -68,7 +67,7 @@ class DecoderV11:
 
                 item.load_secret_sync()
                 item_value = item.get_secret().get_text()
-                master_key = base64.b64decode(item_value)
+                master_key = item_value.encode('utf8')
 
                 decoder_key = pbkdf2_hmac('sha1', master_key, salt, num_iterations, 16)
                 print(f'collection: {collection_label}, item: {item_label}, secret: {item_value}, master_key: {binascii.hexlify(master_key)}, decoder_key: {binascii.hexlify(decoder_key)}')
