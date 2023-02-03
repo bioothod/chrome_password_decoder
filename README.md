@@ -1,5 +1,9 @@
 # chrome_password_decoder
 Linux chrome/chromium password decoder
 
-So far only v10 protocol is supported - it uses static salt/password and pbkdf2 encrption key generation.
-V11 protocol uses master key obtained from the system (whether it is linux or not) - from gnome-keyring, libsecure, kwallet and so on
+Supported both v10 (static key encryption) and v11 (a master
+key stored in the OS keyring manager is used for password encryption)
+protocols.
+
+Requires `libsecret` to access keyrings and `pycryptodome` for crypto
+ops and a few standard packages.
