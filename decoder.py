@@ -55,11 +55,15 @@ class DecoderV11:
 
         self.secrets = []
 
-        service = Secret.Service.get_sync(Secret.ServiceFlags.LOAD_COLLECTIONS)
+        service = Secret.Service.get_sync(Secret.ServiceFlags.OPEN_SESSION | Secret.ServiceFlags.LOAD_COLLECTIONS)
         service.load_collections()
         for collection in service.get_collections():
             collection_label = collection.get_label()
             collection.load_items()
+
+            if collection.get_locked():
+                service.unlock_sync([collection])
+
             for item in collection.get_items():
                 mtime = item.get_modified()
                 mtime = time.gmtime(mtime)
@@ -87,6 +91,9 @@ class DecoderV11:
                       f'master_key: {binascii.hexlify(master_key)}, '
                       f'decoder_key: {binascii.hexlify(decoder_key)}')
                 self.secrets.append(decoder_key)
+
+        if len(self.secrets) == 0:
+            raise ValueError(f'no v11 secrets loaded')
 
     def decode(self, password: bytes) -> List[str]:
         decoded_passwords: List[str] = []
